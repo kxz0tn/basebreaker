@@ -1,0 +1,40 @@
+name: Flatten game to root
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  flatten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move game files to repository root
+        run: |
+          set -euo pipefail
+          git config user.name "kxz0tn"
+          git config user.email "kxz0tn@users.noreply.github.com"
+
+          if [ ! -f basebreaker-v1.0/index.html ]; then
+            echo "basebreaker-v1.0/index.html missing"
+            ls -la
+            exit 1
+          fi
+
+          cp -f basebreaker-v1.0/index.html index.html
+          rm -rf css js
+          mv basebreaker-v1.0/css css
+          mv basebreaker-v1.0/js js
+          rm -rf basebreaker-v1.0
+          rm -f .github/workflows/pages.yml
+          rm -f .github/workflows/flatten.yml
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git commit -m "Move game to repository root for GitHub Pages"
+          git push
