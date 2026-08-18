@@ -1,10 +1,12 @@
-# Basebreaker
+# BASEBREAKER v2.0
 
 Original 2D endless runner. Black-and-white industrial corridor. Jump. Roll. Fire.
 
 Breach Helix Arc. Keep your flow. Cells are finite — pickups refill the rail. The Devil does not miss. Landscape on mobile.
 
-**Play live:** https://kxz0tn.github.io/basebreaker/
+**[Play live →](https://kxz0tn.github.io/basebreaker/)**
+
+[![Play BASEBREAKER](og.png)](https://kxz0tn.github.io/basebreaker/)
 
 Open `index.html` in a desktop or mobile browser. No install. No network.
 

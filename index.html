@@ -18,13 +18,57 @@
     <meta name="theme-color" content="#000000" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BASEBREAKER" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta
       name="description"
       content="BASEBREAKER v2.0 — original monochrome industrial endless runner. Jump. Roll. Fire."
     />
-    <title>BASEBREAKER</title>
+    <meta name="author" content="kxz0tn" />
+    <link rel="canonical" href="https://kxz0tn.github.io/basebreaker/" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="BASEBREAKER" />
+    <meta property="og:url" content="https://kxz0tn.github.io/basebreaker/" />
+    <meta property="og:title" content="BASEBREAKER v2.0 — Jump. Roll. Fire." />
+    <meta
+      property="og:description"
+      content="Breach Helix Arc. Keep your flow. Cells are finite — pickups refill the rail. The Devil does not miss."
+    />
+    <meta property="og:image" content="https://kxz0tn.github.io/basebreaker/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="BASEBREAKER v2.0 — Jump. Roll. Fire." />
+    <meta
+      name="twitter:description"
+      content="Original monochrome industrial endless runner. Breach the orbital vault."
+    />
+    <meta name="twitter:image" content="https://kxz0tn.github.io/basebreaker/og.png" />
+    <title>BASEBREAKER v2.0</title>
     <link rel="stylesheet" href="css/style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "BASEBREAKER",
+        "alternateName": "Basebreaker v2.0",
+        "description": "Original monochrome industrial endless runner. Jump. Roll. Fire.",
+        "url": "https://kxz0tn.github.io/basebreaker/",
+        "image": "https://kxz0tn.github.io/basebreaker/og.png",
+        "author": { "@type": "Person", "name": "kxz0tn" },
+        "gamePlatform": ["Web Browser", "PC", "Mobile"],
+        "genre": ["Endless runner", "Action"],
+        "playMode": "SinglePlayer",
+        "applicationCategory": "Game",
+        "operatingSystem": "Any",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
   </head>
   <body class="menu-open">
     <div id="stage">
@@ -44,6 +88,11 @@
     </div>
 
     <div id="title" class="panel hidden">
+      <div class="site-rail">
+        <span>HELIX ARC</span>
+        <span class="live">Link Live</span>
+        <span>Unit Runner-01</span>
+      </div>
       <div class="frame">
         <div class="kicker">HELIX ARC  ·  LOCKDOWN  ·  <span id="ver-tag">v2.0</span></div>
         <h1 class="logo">
@@ -65,6 +114,7 @@
           <div>Unit<b>RUNNER-01</b></div>
         </div>
       </div>
+      <div class="credit">Original work · MIT · kxz0tn</div>
     </div>
 
     <div id="how" class="panel hidden">

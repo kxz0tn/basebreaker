@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BASEBREAKER">
+  <rect width="64" height="64" fill="#000"/>
+  <rect x="8" y="8" width="48" height="48" fill="none" stroke="#fff" stroke-width="1.25"/>
+  <path d="M8 8h8M8 8v8M56 8h-8M56 8v8M8 56h8M8 56v-8M56 56h-8M56 56v-8" fill="none" stroke="#fff" stroke-width="2"/>
+  <path d="M18 26h8l12 6-12 6h-8l6-6z" fill="#fff"/>
+  <rect x="13" y="24" width="6" height="3" fill="#fff"/>
+  <rect x="13" y="30.5" width="6" height="3" fill="#fff"/>
+  <rect x="13" y="37" width="6" height="3" fill="#fff"/>
+</svg>
