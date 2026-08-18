@@ -73,6 +73,7 @@ body.menu-open {
   touch-action: none;
 }
 
+/* CRT / holographic stack sitting above the canvas */
 #fx-scan,
 #fx-vignette,
 #fx-damage,
@@ -333,9 +334,10 @@ body.menu-open {
   letter-spacing: 0.22em;
 }
 
+/* How-to-play animated control glyphs */
 .howto {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   margin: 8px 0 22px;
 }
@@ -412,6 +414,39 @@ body.menu-open {
   }
 }
 
+.tap-ring {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  animation: tap-pulse 1.15s ease-in-out infinite;
+}
+
+.tap-ring::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes tap-pulse {
+  0%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.3;
+  }
+  45% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
 .keys {
   display: flex;
   gap: 6px;
@@ -477,6 +512,7 @@ body.menu-open {
   color: #fff;
 }
 
+/* In-run HUD */
 #hud {
   position: fixed;
   inset: 0;
@@ -650,6 +686,23 @@ body.menu-open {
   animation: pulse 0.7s steps(2, end) infinite;
 }
 
+.hud-ammo {
+  position: absolute;
+  right: calc(28px + var(--safe-r));
+  bottom: calc(28px + var(--safe-b));
+  width: 180px;
+}
+
+.hud-ammo.empty .bar-label,
+.hud-ammo.empty #hud-ammo-val {
+  color: #fff;
+  animation: pulse 0.55s steps(2, end) infinite;
+}
+
+.hud-ammo .bar.ammo > i {
+  background: #fff;
+}
+
 @keyframes pulse {
   50% {
     opacity: 0.35;
@@ -744,6 +797,7 @@ body.menu-open {
   margin: 10px 0 0;
 }
 
+/* Game Over — stacked body + pinned actions. Nothing may overlap Retry. */
 .over-frame {
   display: flex;
   flex-direction: column;
@@ -815,6 +869,7 @@ body.menu-open {
   display: flex;
 }
 
+/* Portrait lock gate */
 #rotate {
   display: none;
   position: fixed;
@@ -850,6 +905,7 @@ body.menu-open {
   }
 }
 
+/* Optional transparent mobile fallback pads */
 #touch-ui {
   position: fixed;
   inset: 0;
@@ -899,6 +955,9 @@ body.menu-open {
   .howto,
   .score-row {
     grid-template-columns: 1fr;
+  }
+  .hud-ammo {
+    width: 140px;
   }
   #over .meta,
   #over .stats {

@@ -217,5 +217,100 @@
     n.stop(t + 0.46);
   };
 
+  /** Rail dart — sharp click + short noise burst. */
+  AudioEngine.prototype.shoot = function () {
+    if (!this.ready) return;
+    var t = this._now();
+    var g = this._gain(this.master, 0);
+    var o = this._osc("square", 920, g);
+    g.gain.setValueAtTime(0.07, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+    o.frequency.exponentialRampToValueAtTime(240, t + 0.06);
+    o.start(t);
+    o.stop(t + 0.08);
+    var ng = this._gain(this.master, 0);
+    var filt = this.ctx.createBiquadFilter();
+    filt.type = "highpass";
+    filt.frequency.value = 1800;
+    ng.connect(filt);
+    filt.connect(this.master);
+    var n = this._noiseSrc(ng, false);
+    ng.gain.setValueAtTime(0.08, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    n.start(t);
+    n.stop(t + 0.06);
+  };
+
+  AudioEngine.prototype.dry = function () {
+    if (!this.ready) return;
+    var t = this._now();
+    var g = this._gain(this.master, 0);
+    var o = this._osc("square", 140, g);
+    g.gain.setValueAtTime(0.035, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    o.start(t);
+    o.stop(t + 0.06);
+  };
+
+  AudioEngine.prototype.hitMetal = function () {
+    if (!this.ready) return;
+    var t = this._now();
+    var g = this._gain(this.master, 0);
+    var o = this._osc("triangle", 640, g);
+    g.gain.setValueAtTime(0.06, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    o.frequency.exponentialRampToValueAtTime(180, t + 0.08);
+    o.start(t);
+    o.stop(t + 0.1);
+    var ng = this._gain(this.master, 0);
+    var n = this._noiseSrc(ng, false);
+    ng.gain.setValueAtTime(0.05, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    n.start(t);
+    n.stop(t + 0.07);
+  };
+
+  AudioEngine.prototype.devilWarn = function () {
+    if (!this.ready) return;
+    var t = this._now();
+    var g = this._gain(this.master, 0);
+    var o = this._osc("sawtooth", 70, g);
+    g.gain.setValueAtTime(0.09, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.5);
+    o.start(t);
+    o.stop(t + 0.56);
+  };
+
+  AudioEngine.prototype.devilHit = function () {
+    if (!this.ready) return;
+    var t = this._now();
+    var g = this._gain(this.master, 0);
+    var o = this._osc("square", 110, g);
+    g.gain.setValueAtTime(0.1, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    o.frequency.exponentialRampToValueAtTime(50, t + 0.12);
+    o.start(t);
+    o.stop(t + 0.15);
+  };
+
+  AudioEngine.prototype.devilDown = function () {
+    if (!this.ready) return;
+    var t = this._now();
+    var g = this._gain(this.master, 0);
+    var o = this._osc("sawtooth", 180, g);
+    g.gain.setValueAtTime(0.14, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+    o.frequency.exponentialRampToValueAtTime(40, t + 0.4);
+    o.start(t);
+    o.stop(t + 0.44);
+    var ng = this._gain(this.master, 0);
+    var n = this._noiseSrc(ng, false);
+    ng.gain.setValueAtTime(0.14, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+    n.start(t);
+    n.stop(t + 0.3);
+  };
+
   BB.AudioEngine = AudioEngine;
 })(typeof window !== "undefined" ? window : globalThis);

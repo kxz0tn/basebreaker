@@ -104,11 +104,11 @@
     if (this.sector <= 0 && d < 0.25) {
       bag = ["flat", "flat", "pit", "pipe", "combat", "barrier"];
     } else if (this.sector <= 1) {
-      bag = ["flat", "pit", "pipe", "laser", "combat", "barrier", "mixed", "vent"];
+      bag = ["flat", "pit", "pipe", "laser", "combat", "barrier", "mixed", "vent", "seal"];
     } else if (this.sector === 2) {
-      bag = ["pit", "pipe", "laser", "field", "combat", "mixed", "vent", "gauntlet"];
+      bag = ["pit", "pipe", "laser", "field", "combat", "mixed", "vent", "gauntlet", "seal"];
     } else {
-      bag = ["laser", "field", "mixed", "gauntlet", "doublepit", "combat", "vent", "pipe", "pit"];
+      bag = ["laser", "field", "mixed", "gauntlet", "doublepit", "combat", "vent", "pipe", "pit", "seal"];
     }
     return bag[(r * bag.length) | 0];
   };
@@ -133,8 +133,9 @@
     if (kind === "tutorial") {
       c.floors.push({ x: x, y: G, w: w, h: BB.VIEW_H - G });
       c.hazards.push({ type: "barrier", x: x + 380, y: G - 38, w: 36, h: 38, tagged: false });
-      this._pipe(c, x + 680);
-      this._slap(c, x + 880);
+      this._pipe(c, x + 620);
+      this._breakable(c, x + 820, G);
+      this._boost(c, x + 910, G);
       this._ribs(c);
       this._lights(c, 3);
       return;
@@ -146,8 +147,8 @@
         c.hazards.push({ type: "vent", x: x + w * 0.4, y: C, w: 22, h: 18, tagged: false });
       }
       if (r() < 0.28) this._barrier(c, x + w * 0.55);
-      else if (r() < 0.55) this._breakable(c, x + w * 0.52, G);
-      if (r() < 0.4) this._boost(c, x + w * 0.72, G);
+      else if (r() < 0.6) this._breakable(c, x + w * 0.52, G);
+      if (r() < 0.52) this._boost(c, x + w * 0.72, G);
       if (r() < 0.35) this._slap(c, x + w * 0.78);
       this._maybeSpawn(c, x + w * 0.7, G, "ground");
       this._ribs(c);
@@ -238,7 +239,19 @@
       if (kind === "gauntlet" || d > 0.5) this._laser(c, x + w * 0.74);
       if (kind === "gauntlet" && d > 0.55) this._field(c, x + w * 0.9);
       if (r() < 0.55) this._breakable(c, x + w * 0.4, G);
+      if (kind === "gauntlet" && d > 0.4) this._seal(c, x + w * 0.86);
       this._maybeSpawn(c, x + w * 0.6, G, "ground");
+      this._ribs(c);
+      this._lights(c, 3);
+      return;
+    }
+
+    if (kind === "seal") {
+      c.floors.push({ x: x, y: G, w: w, h: BB.VIEW_H - G });
+      if (r() < 0.4) this._barrier(c, x + w * 0.26);
+      this._seal(c, x + w * 0.48);
+      if (r() < 0.7) this._boost(c, x + w * 0.68, G);
+      else this._breakable(c, x + w * 0.7, G);
       this._ribs(c);
       this._lights(c, 3);
       return;
@@ -294,6 +307,7 @@
     c.hazards.push({ type: "barrier", x: x, y: G - h, w: 36, h: h, tagged: false });
   };
 
+  /** Low lintel. Foot sits in the stand/roll band so only a slide clears. */
   Chunks.prototype._pipe = function (c, x) {
     var G = BB.CONFIG.world.ground;
     var C = BB.CONFIG.world.ceiling;
@@ -303,6 +317,7 @@
     c.hazards.push({ type: "pipe", x: x, y: C, w: w, h: h, tagged: false });
   };
 
+  /** Floating slap pane at standing torso. Roll ducks it; hit knocks down. */
   Chunks.prototype._slap = function (c, x) {
     var G = BB.CONFIG.world.ground;
     c.hazards.push({
@@ -316,7 +331,7 @@
   };
 
   Chunks.prototype._boost = function (c, x, G) {
-    var kinds = ["surge", "aegis", "over"];
+    var kinds = ["surge", "aegis", "over", "cell", "cell"];
     var kind = kinds[(this.rand() * kinds.length) | 0];
     c.hazards.push({
       type: "boost",
@@ -368,12 +383,15 @@
   Chunks.prototype._maybeSpawn = function (c, x, y, where) {
     var r = this.rand();
     var type;
+    /* Ground chasers are owned by the hunt system — chunks only place
+       crawlers and sentinels so they never drop a killer on the player. */
     if (where === "ground") return;
     if (r > 0.62 + this.difficulty * 0.2) return;
     type = where === "ceil" ? 1 : 2;
     c.spawners.push({ x: x, y: y, type: type, fired: false });
   };
 
+  /** Lock crate on the floor. Collision matches the crate — jump or shoot. */
   Chunks.prototype._breakable = function (c, x, G) {
     c.hazards.push({
       type: "break",
@@ -382,10 +400,33 @@
       w: 28,
       h: 42,
       hp: 1,
+      hpMax: 1,
       tagged: false
     });
   };
 
+  /**
+   * Full-height breach plate. Floor to ceiling minus a 6 px housing
+   * pad. Too tall to jump (peak ≈ 131 px) and flush to the floor so
+   * a roll cannot pass. Must be shot. hp = 2.
+   */
+  Chunks.prototype._seal = function (c, x) {
+    var G = BB.CONFIG.world.ground;
+    var C = BB.CONFIG.world.ceiling;
+    c.hazards.push({
+      type: "break",
+      seal: true,
+      x: x,
+      y: C + 4,
+      w: 18,
+      h: G - C - 8,
+      hp: 2,
+      hpMax: 2,
+      tagged: false
+    });
+  };
+
+  /** Mid-air data node. No standing collision. */
   Chunks.prototype._node = function (c, x, y) {
     c.hazards.push({
       type: "break",
@@ -394,6 +435,7 @@
       w: 20,
       h: 20,
       hp: 1,
+      hpMax: 1,
       tagged: false,
       node: true
     });
@@ -425,6 +467,10 @@
     }
   };
 
+  /**
+   * Highest floor (smallest y) under any sample in [x0, x1].
+   * A pit under only one sample still returns a floor if another sample hits.
+   */
   Chunks.prototype.groundUnder = function (x0, x1, py) {
     var samples = [x0, (x0 + x1) * 0.5, x1];
     var best = null;

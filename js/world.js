@@ -16,6 +16,8 @@
     this.chunks = new BB.Chunks();
     this.camX = 0;
     this.shake = 0;
+    this.kickX = 0;
+    this.kickY = 0;
     this.time = 0;
     this.seed = 1;
     this.sector = 0;
@@ -27,10 +29,18 @@
     this.chunks.reset(this.seed);
     this.camX = -BB.CONFIG.world.playerScreenX;
     this.shake = 0;
+    this.kickX = 0;
+    this.kickY = 0;
     this.time = 0;
     this.sector = 0;
     this.distance = 0;
     this.chunks.ensure(0);
+  };
+
+  /** Instant camera impulse. Decays exponentially in update. */
+  World.prototype.nudge = function (x, y) {
+    this.kickX += x || 0;
+    this.kickY += y || 0;
   };
 
   World.prototype.update = function (dt, playerX, difficulty, distance) {
@@ -41,6 +51,9 @@
     this.chunks.sector = this.sector;
     this.camX = playerX - BB.CONFIG.world.playerScreenX;
     if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 6);
+    /* kick decays as 1 - exp(-λ dt), λ = 18 → ~90% gone in 0.13 s */
+    this.kickX = BB.math.damp(this.kickX, 0, 18, dt);
+    this.kickY = BB.math.damp(this.kickY, 0, 18, dt);
     this.chunks.ensure(this.camX);
   };
 
@@ -88,6 +101,7 @@
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, W, H);
 
+    /* star field — orbital void */
     ctx.fillStyle = "#fff";
     n = quality === "low" ? 18 : 36;
     for (i = 0; i < n; i++) {
@@ -98,6 +112,7 @@
     }
     ctx.globalAlpha = 1;
 
+    /* far habitat drums / arcology blocks */
     ctx.fillStyle = "#0b0b0b";
     n = quality === "low" ? 6 : 9;
     for (i = 0; i < n; i++) {
@@ -115,6 +130,7 @@
       ctx.fillStyle = "#0b0b0b";
     }
 
+    /* orbital ring chord */
     ctx.strokeStyle = "#161616";
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -139,6 +155,7 @@
       ctx.stroke();
     }
 
+    /* mid transit tubes */
     ctx.fillStyle = "#121212";
     ctx.fillRect(0, 210, W, 10);
     ctx.fillRect(0, 320 + sec * 8, W, 6);
@@ -150,6 +167,7 @@
       ctx.fillRect(x + 6, H - 168 - 104, 16, 14);
     }
 
+    /* conduit cables */
     ctx.strokeStyle = "#181818";
     n = quality === "low" ? 4 : 7;
     for (i = 0; i < n; i++) {
@@ -164,6 +182,7 @@
     ctx.fillStyle = "#0e0e0e";
     ctx.fillRect(0, H - 148, W, 148);
 
+    /* status pips */
     ctx.globalAlpha = 0.18;
     ctx.fillStyle = "#fff";
     for (i = 0; i < 5; i++) {
@@ -195,6 +214,7 @@
       ctx.fillStyle = this.sector >= 2 ? "#080808" : "#0a0a0a";
       ctx.fillRect(sx, C, c.w, G - C);
 
+      /* structural ribs — denser in later sectors */
       ctx.fillStyle = "#161616";
       for (j = 0; j < c.decor.length; j++) {
         dec = c.decor[j];
@@ -204,12 +224,14 @@
         ctx.fillStyle = "#161616";
       }
 
+      /* wall panel grid */
       ctx.strokeStyle = "#141414";
       ctx.lineWidth = 1;
       for (k = 0; k < c.w; k += 120) {
         ctx.strokeRect(sx + k + 16, C + 24, 88, G - C - 48);
       }
 
+      /* ceiling tray */
       ctx.fillStyle = "#fff";
       ctx.fillRect(sx, 0, c.w, C);
       ctx.fillStyle = "#000";
@@ -219,6 +241,7 @@
         ctx.fillRect(sx + k, C - 20, 14, 10);
       }
 
+      /* sector stencil */
       ctx.globalAlpha = 0.08;
       ctx.fillStyle = "#fff";
       ctx.font = "700 22px monospace";
@@ -238,6 +261,7 @@
         }
         ctx.fillStyle = "#fff";
         ctx.fillRect(f.x - cam, f.y - 4, f.w, 2);
+        /* edge running lights */
         ctx.fillStyle = this.sector >= 3 && ((this.time * 6) | 0) % 2 ? "#888" : "#000";
         for (gx = 0; gx < f.w; gx += 48) {
           ctx.fillRect(f.x - cam + gx + 8, f.y - 7, 8, 2);
@@ -252,6 +276,7 @@
         ctx.fillStyle = "#fff";
         ctx.fillRect(f.x - cam - 4, f.y - 8, 4, 16);
         ctx.fillRect(f.x - cam + f.w, f.y - 8, 4, 16);
+        /* depth slats */
         ctx.fillStyle = "#1a1a1a";
         ctx.fillRect(f.x - cam, f.y + 20, f.w, 2);
         ctx.fillRect(f.x - cam, f.y + 50, f.w, 2);
@@ -300,9 +325,14 @@
   };
 
   World.prototype.applyShake = function (ctx) {
-    if (this.shake <= 0) return;
-    var mag = this.shake * 7;
-    ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+    var mag = this.shake > 0 ? this.shake * 7 : 0;
+    var kx = this.kickX || 0;
+    var ky = this.kickY || 0;
+    if (mag <= 0 && !kx && !ky) return;
+    ctx.translate(
+      kx + (mag ? (Math.random() - 0.5) * mag : 0),
+      ky + (mag ? (Math.random() - 0.5) * mag : 0)
+    );
   };
 
   BB.World = World;

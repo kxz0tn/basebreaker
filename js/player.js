@@ -15,6 +15,12 @@
  * IMPACT (stance FALL) — upright hitch:
  *   vx ← rest * vx, then a = impactAccel until vx ≈ targetVx.
  * No lie-down. Hunt reads the slower vx and closes. That is the punish.
+ *
+ * GUN — rail dart leaves the barrel in the runner rest frame:
+ *   v_world = v_player + muzzle
+ * Muzzle height tracks stance (chest standing, hip in the slide) so
+ * the projectile is welded to the silhouette, not floating at a
+ * constant screen Y.
  */
 (function (global) {
   "use strict";
@@ -35,6 +41,7 @@
 
   Player.prototype.reset = function () {
     var P = BB.CONFIG.player;
+    var G = BB.CONFIG.gun;
     this.x = 0;
     this.y = BB.CONFIG.world.ground;
     this.px = 0;
@@ -67,8 +74,14 @@
     this.boostMax = 0;
     this.scrape = 0;
     this._holdT = 0;
+    this.ammo = G.ammoStart;
+    this.ammoMax = G.ammoMax;
+    this.fireCD = 0;
+    this.muzzleT = 0;
+    this.dryT = 0;
   };
 
+  /** Seconds the box stays low. Distance law: s = v t ≥ rollClearPx. */
   Player.prototype.rollHold = function () {
     var P = BB.CONFIG.player;
     var v = Math.max(this.vx, 200);
@@ -95,6 +108,8 @@
 
   Player.prototype.hitbox = function () {
     var P = BB.CONFIG.player;
+    /* Entire ROLL stance uses the low box. Rising is visual only —
+       growing the box under a lintel is why the slide felt broken. */
     if (this.stance === STANCE.ROLL) {
       return {
         x: this.x - P.rollW * 0.3,
@@ -111,10 +126,61 @@
     };
   };
 
+  /**
+   * Barrel tip in world space. Standing / stagger / air: chest line
+   * (~33 px above the soles). Slide: hip line so the dart stays
+   * inside the low silhouette.
+   */
+  Player.prototype.muzzleWorld = function () {
+    if (this.stance === STANCE.ROLL) {
+      return { x: this.x + 24, y: this.y - 11 };
+    }
+    return { x: this.x + 22, y: this.y - 33 };
+  };
+
+  Player.prototype.addAmmo = function (n) {
+    var max = this.ammoMax || BB.CONFIG.gun.ammoMax;
+    var before = this.ammo;
+    this.ammo = Math.min(max, Math.max(0, this.ammo + (n || 0)));
+    return this.ammo - before;
+  };
+
+  /**
+   * Consume one cell and return a world-space dart spawn.
+   * fireCD gates both live shots and dry clicks so a held Space
+   * cannot empty the buffer in one poll.
+   */
+  Player.prototype.tryFire = function () {
+    var G = BB.CONFIG.gun;
+    var ev = { fired: false, dry: false, x: 0, y: 0, vx: 0, vy: 0 };
+    var m;
+    if (!this.alive) return ev;
+    if (this.fireCD > 0) return ev;
+    if (this.ammo <= 0) {
+      this.dryT = 0.14;
+      this.fireCD = G.dryCD;
+      ev.dry = true;
+      return ev;
+    }
+    this.ammo -= 1;
+    this.fireCD = G.fireCD;
+    this.muzzleT = 0.065;
+    m = this.muzzleWorld();
+    ev.fired = true;
+    ev.x = m.x;
+    ev.y = m.y;
+    ev.vx = this.vx + G.muzzle;
+    ev.vy = 0;
+    return ev;
+  };
+
   Player.prototype.requestJump = function () {
     this.buffer = BB.CONFIG.player.jumpBuffer;
   };
 
+  /**
+   * Commit the slide. Collision and pose both go low on this frame.
+   */
   Player.prototype.requestRoll = function () {
     var P = BB.CONFIG.player;
     if (!this.alive) return false;
@@ -154,12 +220,26 @@
 
   Player.prototype.giveBoost = function (kind) {
     var B = BB.CONFIG.boost;
+    var G = BB.CONFIG.gun;
+    var gained = 0;
+    if (kind === "cell") {
+      gained = this.addAmmo(G.refillCell);
+      return gained;
+    }
     this.boostKind = kind;
-    if (kind === "surge") this.boostMax = B.surgeTime;
-    else if (kind === "aegis") this.boostMax = B.aegisTime;
-    else this.boostMax = B.overTime;
+    if (kind === "surge") {
+      this.boostMax = B.surgeTime;
+      gained = this.addAmmo(G.refillSurge);
+    } else if (kind === "aegis") {
+      this.boostMax = B.aegisTime;
+      gained = this.addAmmo(G.refillAegis);
+    } else {
+      this.boostMax = B.overTime;
+      gained = this.addAmmo(G.refillOver);
+    }
     this.boostT = this.boostMax;
     if (kind === "aegis") this.iframe = Math.max(this.iframe, B.aegisTime);
+    return gained;
   };
 
   Player.prototype.update = function (dt, input, world, particles) {
@@ -196,6 +276,9 @@
     this.jumpHeld = !!input.jumpHeld;
     this.iframe = Math.max(0, this.iframe - dt);
     this.buffer = Math.max(0, this.buffer - dt);
+    this.fireCD = Math.max(0, this.fireCD - dt);
+    this.muzzleT = Math.max(0, this.muzzleT - dt);
+    this.dryT = Math.max(0, this.dryT - dt);
     this.coyote = this.grounded ? P.coyote + (this.coyoteBonus || 0) : Math.max(0, this.coyote - dt);
 
     var stunned = this.stance === STANCE.FALL && this.fallT < 0.06;
@@ -243,6 +326,10 @@
     return ev;
   };
 
+  /**
+   * Integrate crouch and friction. drop/slide/rise are time windows
+   * that drive crouch; vx is a real state, not a timer side-effect.
+   */
   Player.prototype._stepRoll = function (dt, P, particles) {
     var tgt = this.targetVx || this.vx;
     var floor = tgt * P.rollFloor;
@@ -286,6 +373,10 @@
     }
   };
 
+  /**
+   * Re-accelerate after the impact impulse. Ends on a speed threshold,
+   * not a costume change.
+   */
   Player.prototype._stepImpact = function (dt, P, ev) {
     var tgt = this.targetVx || this.vx;
     this.fallT += dt;
@@ -354,6 +445,7 @@
   Player.prototype.draw = function (ctx, camX, t) {
     var sx = this.x - camX;
     var sy = this.y;
+    var P = BB.CONFIG.player;
 
     ctx.save();
     ctx.translate(sx, sy);
@@ -428,10 +520,12 @@
 
     ctx.save();
     ctx.translate(8, -34);
-    ctx.rotate(air ? -0.15 : armA * 0.25);
+    ctx.rotate((air ? -0.15 : armA * 0.25) + (this.muzzleT > 0 ? -0.18 : 0));
     ctx.fillStyle = "#fff";
     ctx.fillRect(-2, 0, 4, 16);
     ctx.restore();
+
+    this._drawGun(ctx);
 
     ctx.fillStyle = "#fff";
     ctx.beginPath();
@@ -448,6 +542,40 @@
     ctx.globalAlpha = 1;
   };
 
+  /**
+   * Compact rail on the forward hip-shoulder line. Flash is a white
+   * chevron at the muzzle so the shot reads as leaving the body.
+   */
+  Player.prototype._drawGun = function (ctx) {
+    var flash = this.muzzleT;
+    ctx.save();
+    ctx.translate(10, -32);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, 8, 6);
+    ctx.fillRect(6, 1, 16, 3);
+    ctx.fillRect(2, 5, 3, 6);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(8, 2, 4, 1);
+    ctx.fillRect(3, 1, 2, 4);
+    if (flash > 0) {
+      ctx.globalAlpha = Math.min(1, flash * 15);
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.moveTo(22, -1);
+      ctx.lineTo(36, 2.5);
+      ctx.lineTo(22, 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillRect(20, 1, 10, 3);
+    }
+    ctx.restore();
+  };
+
+  /**
+   * Drawn inside the low hitbox (origin = feet). No rotation around
+   * the heels — that pulled the helmet outside the box and looked like
+   * a cartwheel. The figure is already horizontal; rise only un-tucks.
+   */
   Player.prototype._drawSlide = function (ctx) {
     var u = this.visCrouch;
     var lift = (1 - u) * 16;
@@ -464,10 +592,18 @@
     ctx.fillStyle = "#fff";
     ctx.fillRect(-20, -2, 6, 5);
     ctx.fillRect(18, 1, 8, 3);
+    /* tucked barrel — still fires from hip */
+    ctx.fillRect(16, -4, 12, 2);
+    if (this.muzzleT > 0) {
+      ctx.globalAlpha = Math.min(1, this.muzzleT * 15);
+      ctx.fillRect(28, -5, 10, 4);
+      ctx.globalAlpha = 1;
+    }
     ctx.globalAlpha = 0.3 * u;
     ctx.fillRect(-22, 5, 14, 2);
   };
 
+  /** Still sprinting. Lean tracks the speed we have not yet recovered. */
   Player.prototype._drawStagger = function (ctx, t) {
     var tgt = this.targetVx || 1;
     var lost = BB.math.saturate(1 - this.vx / tgt);

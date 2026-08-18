@@ -10,9 +10,11 @@
  *   pipe    — hanging pillar (capital / shaft / foot), roll
  *   laser   — column housings + a thin timed beam
  *   field   — two posts + a timed force pane
+ *   break   — lock crate (jump or shoot) / node (shoot) / seal (MUST shoot)
  *
  * Lasers and fields that are OFF have no body. Pits and vents never
- * collide here.
+ * collide here. Seals are full-height plates: no jump, no roll. The
+ * rail is the only legal path.
  */
 (function (global) {
   "use strict";
@@ -76,7 +78,7 @@
     else if (h.type === "laser") this._drawLaser(ctx, sx, h, t);
     else if (h.type === "field") this._drawField(ctx, sx, h, t);
     else if (h.type === "vent") this._drawVent(ctx, sx, h, particles);
-    else if (h.type === "break" && h.hp > 0) this._drawBreak(ctx, sx, h);
+    else if (h.type === "break" && h.hp > 0) this._drawBreak(ctx, sx, h, t);
     else if (h.type === "slap" && !h.broken) this._drawSlap(ctx, sx, h, t);
     else if (h.type === "boost") this._drawBoost(ctx, sx, h, t);
     ctx.restore();
@@ -153,6 +155,11 @@
       ctx.closePath();
       ctx.stroke();
       ctx.fillRect(-3, -3, 6, 6);
+    } else if (h.kind === "cell") {
+      ctx.strokeRect(-8, -10, 16, 20);
+      ctx.fillRect(-5, -6, 10, 3);
+      ctx.fillRect(-2, -2, 4, 10);
+      ctx.fillRect(-5, 2, 10, 2);
     } else {
       ctx.beginPath();
       for (var i = 0; i < 6; i++) {
@@ -165,7 +172,11 @@
     }
   };
 
-  Hazards.prototype._drawBreak = function (ctx, sx, h) {
+  Hazards.prototype._drawBreak = function (ctx, sx, h, t) {
+    if (h.seal) {
+      this._drawSeal(ctx, sx, h, t);
+      return;
+    }
     ctx.fillStyle = "#fff";
     ctx.fillRect(sx, h.y, h.w, h.h);
     ctx.fillStyle = "#000";
@@ -178,6 +189,55 @@
       ctx.fillStyle = "#000";
       ctx.fillRect(sx + 7, h.y + 7, 6, 6);
     }
+    /* small target pip — this crate is shootable */
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(sx + h.w * 0.5 - 3, h.y + h.h * 0.45, 6, 6);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(sx + h.w * 0.5 - 1, h.y + h.h * 0.45 - 2, 2, 10);
+    ctx.fillRect(sx + h.w * 0.5 - 5, h.y + h.h * 0.45 + 2, 10, 2);
+  };
+
+  /**
+   * Necessary breach plate. Full corridor height, diamond target,
+   * HP pips, pulse. Cannot be jumped or rolled. The rail is the key.
+   */
+  Hazards.prototype._drawSeal = function (ctx, sx, h, t) {
+    var pulse = 0.55 + Math.sin(t * 10 + h.x * 0.02) * 0.35;
+    var midX = sx + h.w * 0.5;
+    var midY = h.y + h.h * 0.5;
+    var i;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(sx, h.y, h.w, h.h);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(sx + 3, h.y + 8, h.w - 6, h.h - 16);
+
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(midX, midY - 22);
+    ctx.lineTo(midX + 16, midY);
+    ctx.lineTo(midX, midY + 22);
+    ctx.lineTo(midX - 16, midY);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(midX - 10, midY);
+    ctx.lineTo(midX + 10, midY);
+    ctx.moveTo(midX, midY - 10);
+    ctx.lineTo(midX, midY + 10);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = "#fff";
+    for (i = 0; i < (h.hpMax || h.hp || 2); i++) {
+      ctx.globalAlpha = i < h.hp ? 1 : 0.25;
+      ctx.fillRect(sx + h.w + 6, midY - 12 + i * 10, 6, 6);
+    }
+    ctx.globalAlpha = 0.35 + pulse * 0.25;
+    ctx.fillRect(sx - 4, h.y, 2, h.h);
+    ctx.fillRect(sx + h.w + 2, h.y, 2, h.h);
+    ctx.globalAlpha = 1;
   };
 
   Hazards.prototype._drawBarrier = function (ctx, sx, h) {

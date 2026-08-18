@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  BASEBREAKER v1.0
+  BASEBREAKER v2.0
   Copyright (c) 2026 kxz0tn
   SPDX-License-Identifier: MIT
 
@@ -21,7 +21,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta
       name="description"
-      content="BASEBREAKER v1.0 — original monochrome cyberpunk endless runner. Breach Helix Arc."
+      content="BASEBREAKER v2.0 — original monochrome industrial endless runner. Jump. Roll. Fire."
     />
     <title>BASEBREAKER</title>
     <link rel="stylesheet" href="css/style.css" />
@@ -39,20 +39,21 @@
 
     <div id="boot" class="panel">
       <div class="boot-log" id="boot-log">
-        <div>BASEBREAKER  v1.0  //  COLD START</div>
+        <div>BASEBREAKER  v2.0  //  COLD START</div>
       </div>
     </div>
 
     <div id="title" class="panel hidden">
       <div class="frame">
-        <div class="kicker">HELIX ARC  ·  LOCKDOWN  ·  <span id="ver-tag">v1.0</span></div>
+        <div class="kicker">HELIX ARC  ·  LOCKDOWN  ·  <span id="ver-tag">v2.0</span></div>
         <h1 class="logo">
           <span>BASE</span>
           <span class="sub">BREAKER</span>
         </h1>
         <p class="tag">
-          Breach the orbital vault. Jump. Roll. Clean flow opens distance.
-          Hesitation lets security close. Contact freezes the number. Forever.
+          Breach the orbital vault. Jump. Roll. Fire. Cells are finite —
+          pickups refill the rail. The Devil does not miss. Contact
+          freezes the number. Forever.
         </p>
         <div class="row">
           <button class="btn" id="btn-start" type="button">Initiate Run</button>
@@ -98,11 +99,25 @@
               </div>
             </div>
           </div>
+          <div class="ctrl">
+            <div class="glyph">
+              <div class="tap-ring"></div>
+            </div>
+            <div class="lab">Shoot</div>
+            <div class="sub">Space / Tap<br />Cells refill on pickups</div>
+            <div class="glyph" style="height: 36px">
+              <div class="keys">
+                <span class="key">SPC</span>
+              </div>
+            </div>
+          </div>
         </div>
         <p class="tag">
           ROLL under low lintels. Duck floating slap panes. A clip is
-          a short stumble — you never go down. Lasers, pits, fields, and
-          contact still kill.
+          a short stumble — you never go down. FIRE the rail at marked
+          seals and the Devil. Seals cannot be jumped or rolled. The
+          Devil takes 3–5 hits; miss the window and it takes you.
+          Lasers, pits, fields, and contact still kill.
           Menus: Arrows / WASD to move · Enter / Space to confirm · Esc to back.
           Pause: Esc / P &nbsp;·&nbsp; Mute: M &nbsp;·&nbsp; Scanlines: G
         </p>
@@ -147,6 +162,10 @@
         <div class="speed"><span id="hud-speed">0</span><small>M/S</small></div>
         <div class="threat" id="hud-boost"></div>
         <div class="threat" id="hud-threat">QUIET</div>
+      </div>
+      <div class="hud-ammo" id="hud-ammo">
+        <div class="bar-label"><span>Cells</span><span id="hud-ammo-val">06</span></div>
+        <div class="bar ammo"><i id="bar-ammo"></i></div>
       </div>
     </div>
 

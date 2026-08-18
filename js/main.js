@@ -1,5 +1,5 @@
 /**
- * BASEBREAKER — Bootstrap
+ * BASEBREAKER — Startup
  * Copyright (c) 2026 kxz0tn
  * SPDX-License-Identifier: MIT
  *

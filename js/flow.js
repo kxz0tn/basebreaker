@@ -33,6 +33,7 @@
     if (kind === "jump" || kind === "roll") add = F.jump;
     else if (kind === "near") add = F.near;
     else if (kind === "break") add = F.brk;
+    else if (kind === "kill") add = F.kill;
     else add = 0.06;
     this.value = BB.math.clamp(this.value + add, 0, F.max);
     this.idle = 0;

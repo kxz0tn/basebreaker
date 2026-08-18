@@ -42,7 +42,10 @@
       flowBar: document.getElementById("bar-flow"),
       flowVal: document.getElementById("hud-flow-val"),
       sectorName: document.getElementById("hud-sector-name"),
-      boostLab: document.getElementById("hud-boost")
+      boostLab: document.getElementById("hud-boost"),
+      ammoBar: document.getElementById("bar-ammo"),
+      ammoVal: document.getElementById("hud-ammo-val"),
+      ammoWrap: document.getElementById("hud-ammo")
     };
     this._toastT = 0;
     this._menuId = null;
@@ -293,9 +296,9 @@
   };
 
   UI.flavor = function (s) {
-    if (s.score > 40000) return "Helix Arc blinked first. RUNNER-01 remains unlisted.";
-    if (s.distance > 2500) return "A long white scar through the vault. The units are still following.";
-    if (s.time < 12) return "Contact at the airlock. The run ends where it began.";
+    if (s.score > 40000) return "Helix Arc blinked first. The Devil is scrap. RUNNER-01 remains unlisted.";
+    if (s.distance > 2500) return "A long white scar through the vault. Spent cells. The units are still following.";
+    if (s.time < 12) return "Contact at the airlock. The rail never left the holster.";
     return "Signal cut. Suit integrity zero. The score is frozen.";
   };
 
@@ -386,6 +389,9 @@
       if (state.fallen) {
         label = "STUMBLE";
         hot = true;
+      } else if (state.threat >= 4) {
+        label = "DEVIL";
+        hot = true;
       } else if (state.threat >= 3) {
         label = "CONTACT";
         hot = true;
@@ -408,6 +414,16 @@
         this.el.boostLab.textContent = "";
         this.el.boostLab.classList.remove("hot");
       }
+    }
+    if (this.el.ammoBar || this.el.ammoVal) {
+      var ammo = state.ammo || 0;
+      var ammoMax = state.ammoMax || 12;
+      var ratio = ammoMax > 0 ? ammo / ammoMax : 0;
+      if (this.el.ammoBar) this.el.ammoBar.style.transform = "scaleX(" + BB.math.clamp(ratio, 0, 1) + ")";
+      if (this.el.ammoVal) {
+        this.el.ammoVal.textContent = (ammo < 10 ? "0" : "") + ammo;
+      }
+      if (this.el.ammoWrap) this.el.ammoWrap.classList.toggle("empty", !!state.dry || ammo <= 0);
     }
   };
 

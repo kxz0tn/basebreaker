@@ -6,6 +6,12 @@
  * Owns state, systems, and the rAF tick. Physics is delta-time based
  * and clamped so a backgrounded tab cannot tunnel the astronaut
  * through a laser on resume.
+ *
+ * v2.0 fire order each step:
+ *   1. pose / integrate runner
+ *   2. consume shoot edge → rail dart (world vx = player.vx + muzzle)
+ *   3. hunt + Devil director
+ *   4. swept collisions (player, then slugs vs seals / Devil)
  */
 (function (global) {
   "use strict";
@@ -35,11 +41,14 @@
     this.overT = 0;
     this.crawlerT = 0;
     this.sentinelT = 0;
+    this.devilT = 0;
+    this.devilWarn = false;
     this.elapsed = 0;
     this.last = 0;
     this.acc = 0;
     this.chaseCD = 0;
     this.menuCam = 0;
+    this._armedHint = false;
     this._boundFrame = this.frame.bind(this);
     this._touch = /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent || "") ||
       (navigator.maxTouchPoints || 0) > 1;
@@ -113,6 +122,7 @@
       ["CANVAS 2D CONTEXT", true],
       ["PALETTE LOCK  MONOCHROME", true],
       ["RUNNER-01  GEOMETRY", true],
+      ["RAIL CELL  ARMED", true],
       ["HELIX ARC  LOCKDOWN", true],
       ["SECURITY GRID  ONLINE", true],
       ["AUDIO  SYNTHESIZED", true],
@@ -160,9 +170,12 @@
     this.overT = 0;
     this.crawlerT = 7.4;
     this.sentinelT = 10.5;
+    this.devilT = BB.CONFIG.devil.firstAt;
+    this.devilWarn = false;
     this.chaseCD = 0;
     this.acc = 0;
     this.last = 0;
+    this._armedHint = true;
     this.playing = true;
     this.paused = false;
     this.state = "play";
@@ -202,6 +215,22 @@
 
   Game.prototype._difficulty = function () {
     return BB.math.saturate(this.elapsed / 90 + this.score.distance / 3500);
+  };
+
+  Game.prototype._devilHp = function () {
+    var D = BB.CONFIG.devil;
+    var t = BB.math.saturate(this.elapsed / D.hpRampT);
+    return BB.math.clamp(Math.round(BB.math.lerp(D.hp0, D.hp1, t)), D.hp0, D.hp1);
+  };
+
+  Game.prototype._devilDeadline = function () {
+    var D = BB.CONFIG.devil;
+    return BB.math.lerp(D.deadline0, D.deadline1, this._difficulty());
+  };
+
+  Game.prototype._devilInterval = function () {
+    var D = BB.CONFIG.devil;
+    return BB.math.lerp(D.interval0, D.interval1, this._difficulty());
   };
 
   Game.prototype.frame = function (now) {
@@ -263,8 +292,10 @@
     var speed = this._speed();
     var prevX = player.x;
     var hunt;
+    var shot;
     if (player.boostKind === "surge") speed *= BB.CONFIG.boost.surgeMul;
     player.targetVx = speed;
+    /* Roll and stagger own horizontal vx (friction / re-accel). */
     if (player.stance !== BB.Player.STANCE.ROLL && player.stance !== BB.Player.STANCE.FALL) {
       player.vx = speed;
     }
@@ -283,6 +314,26 @@
     }
     if (ev.boostEnd) this.ui.toast("BOOST END");
 
+    if (player.alive && this.input.shoot) {
+      shot = player.tryFire();
+      if (shot.fired) {
+        this.projectiles.firePlayer(shot.x, shot.y, shot.vx, shot.vy);
+        this.particles.muzzle(shot.x, shot.y);
+        this.audio.shoot();
+        this.world.nudge(BB.CONFIG.gun.kickX, BB.CONFIG.gun.kickY);
+        this.world.shake = Math.max(this.world.shake, BB.CONFIG.gun.shake);
+        this.fx.flash(0.07);
+      } else if (shot.dry) {
+        this.audio.dry();
+        this.ui.toast("CELLS EMPTY");
+      }
+    }
+
+    if (this._armedHint && this.elapsed > 2.05) {
+      this._armedHint = false;
+      this.ui.toast("SPACE / TAP  FIRE");
+    }
+
     this.elapsed += dt;
     this.flow.tick(dt);
     this.world.update(dt, player.x, this._difficulty(), this.score.distance);
@@ -291,7 +342,8 @@
     hunt = {
       flow: this.flow.value,
       shock: this.flow.shock,
-      fallen: player.stance === BB.Player.STANCE.FALL
+      fallen: player.stance === BB.Player.STANCE.FALL,
+      difficulty: this._difficulty()
     };
     this.aliens.update(dt, this.world, player, this.projectiles, hunt);
     this._spawn(dt, speed);
@@ -314,10 +366,20 @@
     this.ui.update(dt, this._hudState());
   };
 
+  /**
+   * Hunt director. One rear chaser is mandatory after firstHunt seconds.
+   * Crawlers and sentinels enter from readable leads. Chunk spawners
+   * only place those two types — never a chaser on the player's x.
+   * Devil is a singleton: frequency and HP scale with survival time.
+   */
   Game.prototype._spawn = function (dt, speed) {
     var self = this;
     var A = BB.CONFIG.hunt;
+    var D = BB.CONFIG.devil;
     var want;
+    var devil;
+    var spec;
+    var spawnX;
     if (!this.player.alive) return;
 
     this.chaseCD = Math.max(0, this.chaseCD - dt);
@@ -360,6 +422,31 @@
       this.sentinelT = A.sentinelInterval - this._difficulty() * 1.2;
     }
 
+    this.devilT -= dt;
+    if (
+      !this.devilWarn &&
+      this.devilT <= D.warnT &&
+      this.devilT > 0 &&
+      this.aliens.countType(3) === 0
+    ) {
+      this.devilWarn = true;
+      this.ui.toast("HOSTILE SIGNATURE");
+      this.audio.devilWarn();
+    }
+    if (this.devilT <= 0 && this.aliens.countType(3) === 0) {
+      spawnX = this.player.x + D.spawnLead;
+      spec = {
+        hp: this._devilHp(),
+        deadline: this._devilDeadline(),
+        weave: BB.math.lerp(D.weave0, D.weave1, this._difficulty())
+      };
+      devil = this.aliens.spawn(3, spawnX, BB.CONFIG.world.ground, speed);
+      this.aliens.armDevil(devil, spec);
+      this.devilT = this._devilInterval();
+      this.devilWarn = false;
+      this.ui.toast("DEVIL INBOUND");
+    }
+
     this.world.chunks.forSpawners(function (s) {
       if (s.x < self.world.camX + BB.VIEW_W + 40 && s.x > self.player.x + 120) {
         s.fired = true;
@@ -387,7 +474,9 @@
     var ah;
     var p;
     var threat = 0;
+    var gained;
 
+    /* pits — fall death */
     if (player.y > BB.VIEW_H + 10) {
       this._kill("pit");
       return;
@@ -399,23 +488,25 @@
       if (hz.type === "boost" && !hz.taken) {
         if (BB.math.aabb(hb.x, hb.y, hb.w, hb.h, hz.x, hz.y, hz.w, hz.h)) {
           hz.taken = true;
-          player.giveBoost(hz.kind || "surge");
+          gained = player.giveBoost(hz.kind || "surge");
           self.score.add(BB.CONFIG.score.boostGrab);
           self.flow.feed("break");
           self.particles.shatter(hz.x, hz.y, hz.w, hz.h);
           self.audio.ui();
-          self.ui.toast(
-            hz.kind === "aegis" ? "AEGIS" : hz.kind === "over" ? "OVERDRIVE" : "SURGE"
-          );
+          self.ui.toast(self._boostToast(hz.kind, gained));
         }
         return;
       }
       res = self.hazards.testSweep(hz, hb, dx, dy, t, pad);
       if (res === "hit") {
+        if (hz.type === "break" && hz.seal) {
+          self._kill("seal");
+          return;
+        }
         if (player.iframe > 0 && (hz.type === "laser" || hz.type === "field" || hz.type === "slap" || hz.type === "pipe")) {
           return;
         }
-        if (hz.type === "pipe" || hz.type === "slap") {
+        if (hz.type === "pipe" || hz.type === "slap" || (hz.type === "break" && !hz.seal)) {
           if (player.knockdown()) {
             self.audio.impact();
             self.fx.nearMiss();
@@ -439,11 +530,15 @@
     });
     if (!player.alive) return;
 
+    /* Hostiles: relative sweep (both bodies moved). Rear pursuit is
+       position-clamped off the body; this still catches rails/sentinels.
+       Devil contact is a guaranteed kill — iframe does not save you. */
     for (i = 0; i < this.aliens.pool.alive.length; i++) {
       a = this.aliens.pool.alive[i];
       if (!a.alive) continue;
       ah = this.aliens.hitbox(a);
-      if (Math.abs(a.x - player.x) < 280) threat = Math.max(threat, 2);
+      if (a.type === 3) threat = 4;
+      else if (Math.abs(a.x - player.x) < 280) threat = Math.max(threat, 2);
       if (a.intro > 0) continue;
       if (
         BB.math.aabbSweepRel(
@@ -461,6 +556,10 @@
           a.y - a.py
         )
       ) {
+        if (a.type === 3) {
+          this._kill("devil");
+          return;
+        }
         if (player.iframe > 0) continue;
         this._kill("alien");
         return;
@@ -471,10 +570,11 @@
         this.flow.feed("near");
         this.fx.nearMiss();
         this.audio.near();
-        threat = 3;
+        threat = Math.max(threat, a.type === 3 ? 4 : 3);
       }
     }
 
+    /* Hostile bolts: sweep their travel this step. */
     for (i = 0; i < this.projectiles.bolts.alive.length; i++) {
       p = this.projectiles.bolts.alive[i];
       if (!p.alive) continue;
@@ -499,7 +599,121 @@
       }
     }
 
+    this._slugHits();
+
     this._threat = threat || (this.aliens.pool.alive.length ? 1 : 0);
+  };
+
+  Game.prototype._boostToast = function (kind, gained) {
+    var extra = gained > 0 ? "  +" + gained : "";
+    if (kind === "cell") return "CELLS" + extra;
+    if (kind === "aegis") return "AEGIS" + extra;
+    if (kind === "over") return "OVERDRIVE" + extra;
+    return "SURGE" + extra;
+  };
+
+  /**
+   * Player darts vs shootable plates and the Devil.
+   * Each slug is a swept segment this step. First solid wins.
+   */
+  Game.prototype._slugHits = function () {
+    var slugs = this.projectiles.slugs.alive;
+    var i;
+    var j;
+    var p;
+    var a;
+    var ah;
+    var self = this;
+    var hits;
+    var res;
+    var hunt = { difficulty: this._difficulty() };
+
+    for (i = 0; i < slugs.length; i++) {
+      p = slugs[i];
+      if (!p.alive) continue;
+      hits = false;
+
+      this.world.chunks.forHazards(function (hz) {
+        if (hits || !p.alive) return;
+        if (hz.type !== "break" || hz.hp <= 0) return;
+        if (!self.projectiles.slugHits(p, hz.x, hz.y, hz.w, hz.h)) return;
+        hits = true;
+        p.alive = false;
+        hz.hp -= 1;
+        self.particles.impact(p.x, p.y);
+        self.audio.hitMetal();
+        self.world.nudge(-2, 0);
+        if (hz.hp <= 0) {
+          self.particles.shatter(hz.x, hz.y, hz.w, hz.h);
+          self.flow.feed("break");
+          if (hz.seal) {
+            self.score.add(BB.CONFIG.score.sealBreak);
+            self.ui.toast("SEAL BREACHED");
+          } else if (hz.node) {
+            self.score.add(BB.CONFIG.score.nodeBreak);
+          } else {
+            self.score.add(BB.CONFIG.score.crateBreak);
+          }
+        }
+      });
+      if (!p.alive) continue;
+
+      for (j = 0; j < this.aliens.pool.alive.length; j++) {
+        a = this.aliens.pool.alive[j];
+        if (!a.alive || a.type !== 3) continue;
+        ah = this.aliens.hitbox(a);
+        if (
+          !BB.math.aabbSweepRel(
+            p.px,
+            p.py,
+            p.w,
+            p.h,
+            p.x - p.px,
+            p.y - p.py,
+            ah.x - (a.x - a.px),
+            ah.y - (a.y - a.py),
+            ah.w,
+            ah.h,
+            a.x - a.px,
+            a.y - a.py
+          )
+        ) {
+          continue;
+        }
+        p.alive = false;
+        res = this.aliens.hurtDevil(a, hunt);
+        this.particles.impact(p.x, p.y);
+        this.world.nudge(-3, 1);
+        this.world.shake = Math.max(this.world.shake, 0.28);
+        if (res === "dead") {
+          this._devilDown(a);
+        } else {
+          this.audio.devilHit();
+          this.ui.toast("HIT  " + a.hp);
+        }
+        break;
+      }
+    }
+    this.projectiles.slugs.reclaim();
+  };
+
+  Game.prototype._devilDown = function (a) {
+    var D = BB.CONFIG.devil;
+    var payout = D.score + (a.hpMax || 3) * D.scorePerHp;
+    var gained;
+    this.particles.devilBurst(a.x, a.y);
+    this.audio.devilDown();
+    this.score.add(payout);
+    this.flow.feed("kill");
+    gained = this.player.addAmmo(BB.CONFIG.gun.refillDevil);
+    this.flow.shock = Math.max(this.flow.shock, 1.35);
+    this.chaseCD = Math.max(this.chaseCD, 1.15);
+    this.devilT = this._devilInterval() + D.breath;
+    this.devilWarn = false;
+    this.world.shake = 0.85;
+    this.fx.flash(0.22);
+    this.ui.toast(gained > 0 ? "DEVIL DOWN  +" + gained : "DEVIL DOWN");
+    this.player.iframe = Math.max(this.player.iframe, 0.28);
   };
 
   Game.prototype._kill = function (reason) {
@@ -510,7 +724,7 @@
     this.fx.hit();
     this.world.shake = 1;
     this.audio.death();
-    this.ui.toast("CONTACT");
+    this.ui.toast(reason === "devil" ? "TAKEN" : "CONTACT");
     this.overT = 0;
     this._killReason = reason;
   };
@@ -537,7 +751,10 @@
       boostKind: this.player.boostKind,
       boostT: this.player.boostT,
       boostMax: this.player.boostMax,
-      fallen: this.player.stance === BB.Player.STANCE.FALL
+      fallen: this.player.stance === BB.Player.STANCE.FALL,
+      ammo: this.player.ammo,
+      ammoMax: this.player.ammoMax,
+      dry: this.player.dryT > 0 || this.player.ammo <= 0
     };
   };
 
@@ -568,6 +785,7 @@
   };
 
   Game.prototype._drawMenuRunner = function (ctx) {
+    /* idle silhouette jogging on the title backdrop */
     var p = this.player;
     p.x = this.world.camX + BB.CONFIG.world.playerScreenX;
     p.y = this.world.groundAt(p.x, BB.CONFIG.world.ground) || BB.CONFIG.world.ground;

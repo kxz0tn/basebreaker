@@ -4,10 +4,14 @@
  * SPDX-License-Identifier: MIT
  *
  * Two modes share one keyboard:
- *   play  — jump / roll
+ *   play  — jump / roll / shoot
  *   menu  — navigate / confirm / back
  * The Game sets menuMode from its state each tick so Space cannot
  * confirm a menu and also leak into play input on the same frame.
+ *
+ * Mobile (landscape): swipe up / down = jump / roll. A tap is a
+ * release whose displacement stays under TAP_SLOP and whose duration
+ * stays under TAP_MAX — that edge is shoot. A swipe never shoots.
  */
 (function (global) {
   "use strict";
@@ -15,6 +19,8 @@
   var BB = (global.BB = global.BB || {});
 
   var SWIPE = 42;
+  var TAP_SLOP = 28;
+  var TAP_MAX = 320;
 
   function Input(canvas) {
     this.canvas = canvas;
@@ -23,6 +29,7 @@
 
     this.jump = false;
     this.roll = false;
+    this.shoot = false;
     this.jumpHeld = false;
     this.pausePressed = false;
     this.mutePressed = false;
@@ -37,6 +44,7 @@
 
     this._jumpEdge = false;
     this._rollEdge = false;
+    this._shootEdge = false;
     this._pauseEdge = false;
     this._muteEdge = false;
     this._scanEdge = false;
@@ -70,6 +78,7 @@
   Input.prototype._bind = function () {
     var self = this;
     var canvas = this.canvas;
+    var stage = document.getElementById("stage") || canvas;
 
     window.addEventListener(
       "keydown",
@@ -106,6 +115,7 @@
         } else {
           if (code === "ArrowUp" || code === "KeyW") self._jumpEdge = true;
           if (code === "ArrowDown" || code === "KeyS") self._rollEdge = true;
+          if (code === "Space") self._shootEdge = true;
           if (code === "Escape" || code === "KeyP") self._pauseEdge = true;
         }
         if (code === "KeyM") self._muteEdge = true;
@@ -134,7 +144,13 @@
       };
     }
 
+    function fromUi(el) {
+      if (!el || !el.closest) return false;
+      return !!el.closest(".btn, .pad, .panel, #rotate, #error");
+    }
+
     function onDown(e) {
+      if (fromUi(e.target)) return;
       if (e.cancelable) e.preventDefault();
       if (e.button !== undefined && e.button !== 0) return;
       var p = pointFrom(e);
@@ -157,6 +173,7 @@
       var dx = p.x - self._pointer.sx;
       if (!self._pointer.swiped && Math.abs(dy) > SWIPE && Math.abs(dy) > Math.abs(dx) * 0.85) {
         self._pointer.swiped = true;
+        if (self.menuMode) return;
         if (dy < 0) {
           self._jumpEdge = true;
           self._jumpGrace = 0.14;
@@ -167,18 +184,29 @@
     }
 
     function onUp(e) {
+      if (!self._pointer.down) return;
       if (e.cancelable) e.preventDefault();
+      var p = pointFrom(e);
+      var dx = p.x - self._pointer.sx;
+      var dy = p.y - self._pointer.sy;
+      var held = performance.now() - self._pointer.t;
+      var dist = Math.sqrt(dx * dx + dy * dy);
       self._pointer.down = false;
+      if (self.menuMode) return;
+      /* Tap = short, small, not a swipe. Anywhere on the stage fires. */
+      if (!self._pointer.swiped && dist < TAP_SLOP && held < TAP_MAX) {
+        self._shootEdge = true;
+      }
     }
 
-    canvas.addEventListener("mousedown", onDown);
+    stage.addEventListener("mousedown", onDown);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
 
-    canvas.addEventListener("touchstart", onDown, { passive: false });
-    canvas.addEventListener("touchmove", onMove, { passive: false });
-    canvas.addEventListener("touchend", onUp, { passive: false });
-    canvas.addEventListener("touchcancel", onUp, { passive: false });
+    stage.addEventListener("touchstart", onDown, { passive: false });
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp, { passive: false });
+    window.addEventListener("touchcancel", onUp, { passive: false });
 
     canvas.addEventListener("contextmenu", function (e) {
       e.preventDefault();
@@ -249,8 +277,9 @@
     this.touchEnabled = !!on;
     var el = document.getElementById("touch-ui");
     if (!el) return;
-    if (on) el.classList.remove("hidden");
-    else el.classList.add("hidden");
+    /* v2.0: swipe + tap anywhere. Pads stay hidden so they cannot
+       steal taps that should fire the rail. */
+    el.classList.add("hidden");
   };
 
   Input.prototype.poll = function (dt) {
@@ -264,6 +293,7 @@
     if (this.menuMode) {
       this.jump = false;
       this.roll = false;
+      this.shoot = false;
       this.jumpHeld = false;
       this.pausePressed = false;
       this.menuUp = this._menuUp;
@@ -280,6 +310,7 @@
       this._menuBack = false;
       this._jumpEdge = false;
       this._rollEdge = false;
+      this._shootEdge = false;
       this._pauseEdge = false;
       return;
     }
@@ -292,9 +323,11 @@
 
     this.jump = this._jumpEdge;
     this.roll = this._rollEdge;
+    this.shoot = this._shootEdge;
     this.pausePressed = this._pauseEdge;
     this._jumpEdge = false;
     this._rollEdge = false;
+    this._shootEdge = false;
     this._pauseEdge = false;
 
     this.jumpHeld = !!(
