@@ -53,6 +53,19 @@ body.menu-open {
   cursor: default;
 }
 
+body.menu-open::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, #000 28%, transparent 78%);
+}
+
 #stage {
   position: fixed;
   inset: 0;
@@ -157,13 +170,56 @@ body.menu-open {
   display: none !important;
 }
 
+.site-rail {
+  position: absolute;
+  top: calc(18px + var(--safe-t));
+  left: calc(22px + var(--safe-l));
+  right: calc(22px + var(--safe-r));
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 10px;
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  color: var(--mid);
+  z-index: 2;
+}
+
+.site-rail .live {
+  color: #fff;
+}
+
+.site-rail .live::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 10px;
+  background: #fff;
+  vertical-align: 1px;
+  animation: pulse 1.4s steps(2, end) infinite;
+}
+
+.credit {
+  position: absolute;
+  bottom: calc(18px + var(--safe-b));
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
 .frame {
   position: relative;
   width: min(920px, calc(100vw - 48px));
   padding: 48px 56px 40px;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.96));
-  box-shadow: 0 0 0 1px #000, 0 0 40px rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.96));
+  box-shadow: 0 0 0 1px #000, 0 0 48px rgba(255, 255, 255, 0.1);
 }
 
 .frame.wide {
@@ -510,6 +566,12 @@ body.menu-open {
 
 #boot .boot-log .ok {
   color: #fff;
+}
+
+#boot .boot-log::after {
+  content: "█";
+  margin-left: 6px;
+  animation: pulse 0.8s steps(2, end) infinite;
 }
 
 /* In-run HUD */
@@ -945,6 +1007,13 @@ body.menu-open {
 }
 
 @media (max-width: 720px) {
+  .site-rail {
+    font-size: 8px;
+    letter-spacing: 0.18em;
+  }
+  .credit {
+    letter-spacing: 0.16em;
+  }
   .frame {
     padding: 28px 22px;
   }
