@@ -1,17 +1,14 @@
 # Basebreaker
 
-Original 2D endless runner. Black-and-white industrial corridor. Vanilla HTML, CSS, and JavaScript. Canvas 2D. Runtime Web Audio. No third-party assets, fonts, samples, libraries, or CDNs.
+Original 2D endless runner. Black-and-white industrial corridor. Jump. Roll. Fire.
 
-## Versions
+Breach Helix Arc. Keep your flow. Cells are finite — pickups refill the rail. The Devil does not miss. Landscape on mobile.
 
-| Version | Controls | Source | Play |
-| --- | --- | --- | --- |
-| **v2.0** | Jump · Roll · Fire | [`basebreaker-v2.0/`](basebreaker-v2.0/) | Open `basebreaker-v2.0/index.html` |
-| **v1.0** | Jump · Roll | Repository root | [Play live](https://kxz0tn.github.io/basebreaker/) |
+**Play live:** https://kxz0tn.github.io/basebreaker/
 
-### v2.0 — rail and Devil
+Open `index.html` in a desktop or mobile browser. No install. No network.
 
-Limited cells. Pickups refill the rail. Shoot marked seals and the Devil (3–5 hits). Landscape on mobile.
+## How to play
 
 | Action | PC | Mobile |
 | --- | --- | --- |
@@ -19,12 +16,27 @@ Limited cells. Pickups refill the rail. Shoot marked seals and the Devil (3–5 
 | Roll | S / ↓ | Swipe down |
 | Shoot | Space | Tap anywhere |
 
-### v1.0 — jump and roll
+Roll under low lintels. Duck floating panes. A clip is a short stumble. Fire the rail at marked lock crates, full-height seals, and the Devil.
 
-Breach Helix Arc. Keep your flow. Distance and survival score the run. Roll under lintels. A clip is a short stumble. Lasers, pits, fields, and contact kill.
+Seals cannot be jumped or rolled — they must be shot. The Devil takes 3–5 accurate hits. Fail the window and it delivers a guaranteed kill.
+
+Lasers, pits, fields, and contact still kill.
+
+Menus: arrows / WASD, Enter or Space to confirm, Esc to back. Pause: Esc / P. Mute: M.
+
+## Combat
+
+- Limited cells. Start with 6. Cap is 12.
+- Every pickup refills cells (surge +3, aegis +4, overdrive +5, cell +3) on top of its original effect.
+- Darts use real relative velocity: `v_world = v_runner + v_muzzle`. They always lead the corridor.
+- Swept AABB collision. No tunneling.
 
 ## Original work
 
-100% original and open source. Safe to run offline. MIT. See [LICENSE](LICENSE).
+100% original and open source. Vanilla HTML, CSS, and JavaScript. Canvas 2D graphics. Runtime Web Audio. No third-party assets, fonts, samples, libraries, or CDNs.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 Made by kxz0tn • Worked with the help of Grok

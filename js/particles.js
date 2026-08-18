@@ -170,6 +170,51 @@
     }
   };
 
+  Particles.prototype.muzzle = function (x, y) {
+    var i;
+    var n = this.quality === "low" ? 4 : 8;
+    for (i = 0; i < n; i++) {
+      this._emit(
+        x + Math.random() * 6,
+        y - 2 + Math.random() * 4,
+        80 + Math.random() * 180,
+        (Math.random() - 0.5) * 160,
+        0.06 + Math.random() * 0.08,
+        2 + (Math.random() * 4) | 0,
+        1,
+        0,
+        1
+      );
+    }
+  };
+
+  Particles.prototype.impact = function (x, y) {
+    this.sparks(x, y, this.quality === "low" ? 6 : 12);
+  };
+
+  Particles.prototype.devilBurst = function (x, y) {
+    var i;
+    var p;
+    var n = this.quality === "low" ? 22 : 40;
+    for (i = 0; i < n; i++) {
+      p = this._emit(
+        x + (Math.random() - 0.5) * 48,
+        y - Math.random() * 70,
+        (Math.random() - 0.35) * 420,
+        -60 - Math.random() * 320,
+        0.4 + Math.random() * 0.45,
+        3 + (Math.random() * 12) | 0,
+        2 + (Math.random() * 8) | 0,
+        520,
+        2
+      );
+      if (p) {
+        p.rot = Math.random() * 2;
+        p.vr = (Math.random() - 0.5) * 14;
+      }
+    }
+  };
+
   Particles.prototype.vent = function (x, y) {
     if (Math.random() > 0.5) return;
     this._emit(

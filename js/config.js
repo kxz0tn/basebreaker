@@ -5,16 +5,20 @@
  *
  * All motion tunables are SI-style game units: pixels and seconds.
  * Hostiles never receive a permanent speed advantage over the runner.
+ *
+ * v2.0 adds a rail gun (relative muzzle velocity) and the Devil unit.
+ * Bullet world velocity is v_player + v_muzzle so shots always outrun
+ * the corridor, independent of current scroll speed.
  */
 (function (global) {
   "use strict";
 
   var BB = (global.BB = global.BB || {});
 
-  BB.VERSION = "1.0";
-  BB.STORAGE_HI = "basebreaker.v1.hiscore";
-  BB.STORAGE_LIST = "basebreaker.v1.scores";
-  BB.STORAGE_SCAN = "basebreaker.v1.scan";
+  BB.VERSION = "2.0";
+  BB.STORAGE_HI = "basebreaker.v2.hiscore";
+  BB.STORAGE_LIST = "basebreaker.v2.scores";
+  BB.STORAGE_SCAN = "basebreaker.v2.scan";
 
   BB.PALETTE = {
     black: "#000000",
@@ -111,10 +115,81 @@
       flowSpeed: 0.14
     },
 
+    /*
+     * Rail dart. Fired in the runner's rest frame at `muzzle` px/s, then
+     * composed into world space:
+     *   v_world = v_player + v_muzzle
+     * so the projectile always leads the camera by the same relative
+     * distance, at 320 px/s or at 540 px/s. Zero gravity: a 2200 px/s²
+     * drop over a 0.7 s flight is 540 px — the dart would hit the floor
+     * before the first seal. A rail is a kinematic ray with thickness.
+     */
+    gun: {
+      ammoStart: 6,
+      ammoMax: 12,
+      fireCD: 0.155,
+      dryCD: 0.16,
+      muzzle: 880,
+      boltW: 15,
+      boltH: 4,
+      life: 0.7,
+      kickX: -5,
+      kickY: 0,
+      shake: 0.2,
+      refillSurge: 3,
+      refillAegis: 4,
+      refillOver: 5,
+      refillCell: 3,
+      refillDevil: 2
+    },
+
     combat: {
       alienBoltSpeed: 380,
-      maxAliens: 12,
-      maxAlienShots: 24
+      maxAliens: 14,
+      maxAlienShots: 24,
+      maxPlayerShots: 16
+    },
+
+    /*
+     * Devil — high-threat stalker that holds a LEAD (it is always ahead
+     * so forward fire connects). Gap close is a P-controller on lead:
+     *   targetX = player.x + lead
+     *   extra   = (targetX - x) * k
+     *   vx      = damp(vx, player.vx + extra)
+     * Lead shrinks from stalk → lunge → execute. If hp remains when
+     * age >= deadline, lead collapses to killLead and contact is a
+     * guaranteed kill. HP and deadline interpolate with survival time.
+     */
+    devil: {
+      firstAt: 13.2,
+      interval0: 16.8,
+      interval1: 8.4,
+      breath: 2.8,
+      hp0: 3,
+      hp1: 5,
+      hpRampT: 96,
+      deadline0: 4.45,
+      deadline1: 2.7,
+      spawnLead: 348,
+      stalkLead: 296,
+      lungeLead: 78,
+      killLead: 14,
+      stalkT: 0.92,
+      intro: 0.5,
+      pGain: 2.4,
+      maxExtra: 260,
+      weave0: 6,
+      weave1: 22,
+      weaveFreq: 3.4,
+      dodgeDiff: 0.38,
+      dodgeY: 20,
+      dodgeCD: 0.42,
+      knock: 22,
+      w: 58,
+      h: 70,
+      score: 260,
+      scorePerHp: 38,
+      warnT: 0.75
     },
 
     sim: {
@@ -158,6 +233,7 @@
       roll: 0.09,
       near: 0.16,
       brk: 0.12,
+      kill: 0.28,
       idleBeforeDecay: 0.85,
       decayPerSec: 0.32
     },
@@ -168,6 +244,10 @@
       nearMiss: 28,
       cleanMove: 12,
       boostGrab: 35,
+      crateBreak: 44,
+      sealBreak: 96,
+      nodeBreak: 30,
+      devilKill: 260,
       multDecay: 3.1,
       multPerStreak: 0.2,
       multMax: 8,
